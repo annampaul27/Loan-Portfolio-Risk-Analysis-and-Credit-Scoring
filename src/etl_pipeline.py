@@ -5,7 +5,7 @@ import pandas as pd
 import os
 
 def run_etl():
-    print("--- [1/2] Executing ETL Pipeline & Data Synthesis ---")
+    print("--- [1/2] Executing ETL Pipeline (Non-Linear Credit Risk Simulation) ---")
     np.random.seed(42)
     n_records = 15000
 
@@ -22,7 +22,22 @@ def run_etl():
     revol_util = np.random.uniform(0.0, 95.0, size=n_records)
     purpose = np.random.choice(['debt_consolidation', 'credit_card', 'home_improvement', 'major_purchase'], size=n_records)
     
-    logit = -0.000005 * (annual_inc - 60000) - 0.012 * (fico_score - 700) + 0.025 * dti + 0.04 * int_rate + (term == ' 60 months') * 0.2 - 1.8
+    # NON-LINEAR TARGET GENERATION (Compounding Risk factors for Trees)
+    # Risk spikes exponentially when FICO < 660 AND DTI > 25
+    fico_penalty = np.where(fico_score < 660, 1.2, 0.0)
+    dti_penalty = np.where(dti > 25, 0.9, 0.0)
+    compounding_risk = fico_penalty * dti_penalty  
+
+    logit = (
+        -0.000008 * (annual_inc - 55000) 
+        - 0.015 * (fico_score - 700) 
+        + 0.03 * dti 
+        + 0.05 * int_rate 
+        + (term == ' 60 months') * 0.3 
+        + compounding_risk
+        - 2.2
+    )
+    
     default_flag = np.random.binomial(1, 1 / (1 + np.exp(-logit)))
 
     df_loans = pd.DataFrame({
@@ -41,17 +56,11 @@ def run_etl():
         'default_flag': default_flag
     })
 
-    print(f"Data Reconciliation Checks:")
-    print(f" - Total Loaded Records: {{len(df_loans):,}}")
-    print(f" - Total Defaults: {{df_loans['default_flag'].sum():,}} ({{round(df_loans['default_flag'].mean()*100, 2)}}%)")
-    print(f" - Null Values Count: {{df_loans.isnull().sum().sum()}}")
-    print(f" - Duplicate Loan IDs: {{df_loans.duplicated(subset=['loan_id']).sum()}}")
-
     os.makedirs("data", exist_ok=True)
     conn = sqlite3.connect("data/loan_portfolio.db")
     df_loans.to_sql("loans", conn, if_exists="replace", index=False)
     df_loans.to_csv("data/lending_club_cleaned_portfolio.csv", index=False)
-    print("✔ ETL Complete. Database and Power BI CSV saved in /data/")
+    print("✔ Non-linear dataset generated and saved successfully!")
     conn.close()
 
 if __name__ == "__main__":
