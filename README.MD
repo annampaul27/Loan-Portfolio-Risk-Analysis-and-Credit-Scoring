@@ -26,6 +26,7 @@ loan-portfolio-risk-analysis/
 │
 ├── data/
 │   ├── loan_portfolio.db                 # SQLite relational database
+|    └── loan.csv  # kaggle dataset 
 │   └── lending_club_cleaned_portfolio.csv  # Cleaned dataset exported for Power BI
 │
 ├── sql/
